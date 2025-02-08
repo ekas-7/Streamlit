@@ -57,7 +57,8 @@ st.markdown("""
    
     
     .stTextInput:focus, .stTextArea:focus {
- 
+        border-color: var(--primary-yellow);
+        box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
     }
     
     /* Buttons */
