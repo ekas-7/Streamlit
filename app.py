@@ -54,15 +54,10 @@ st.markdown("""
     }
     
     /* Input fields */
-    .stTextInput, .stTextArea {
-        border: 2px solid var(--secondary-yellow);
-        border-radius: 1rem;
-        transition: all 0.3s ease;
-    }
+   
     
     .stTextInput:focus, .stTextArea:focus {
-        border-color: var(--primary-yellow);
-        box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
+ 
     }
     
     /* Buttons */
