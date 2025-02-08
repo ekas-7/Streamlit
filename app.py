@@ -1,0 +1,96 @@
+import streamlit as st
+import os
+import warnings
+from langchain_community.document_loaders import TextLoader
+from langchain_ollama import OllamaEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.prompts import ChatPromptTemplate
+from langchain.chains import create_retrieval_chain
+from langchain_community.vectorstores import FAISS
+from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
+import time
+
+# Suppress deprecated warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
+
+# Load environment variables
+load_dotenv()
+
+gemini_api_key = os.environ.get("GEMINI_API_KEY")
+if not gemini_api_key:
+    st.error("GEMINI_API_KEY is not set in environment variables.")
+    st.stop()
+
+# Initialize embeddings
+embeddings = OllamaEmbeddings(model="llama3")
+
+# Initialize session state for vector_store
+if "vector_store" not in st.session_state:
+    st.session_state.vector_store = None
+
+# Initialize Google Gemini LLM
+llm = ChatGoogleGenerativeAI(
+    model="gemini-1.5-flash",
+    google_api_key=gemini_api_key,
+    temperature=0.7
+)
+
+# Set up a ChatPromptTemplate
+prompt = ChatPromptTemplate.from_messages([
+    ("system", """
+    Answer the question based on the provided context only.
+    Please provide the most accurate response based on the question.
+    
+    Context: {context}
+    """),
+    ("user", "{input}")
+])
+
+# Create the document chain
+document_chain = create_stuff_documents_chain(llm, prompt)
+
+st.title("RAG Chatbot with Gemini API")
+
+# Sidebar for text addition
+st.sidebar.header("Add Text to Knowledge Base")
+text_input = st.sidebar.text_area("Enter text to add to the vector store:")
+if st.sidebar.button("Add Text"):
+    try:
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
+        final_documents = text_splitter.split_text(text_input)
+        
+        new_vectors = FAISS.from_texts(final_documents, embeddings)
+        
+        if st.session_state.vector_store is None:
+            st.session_state.vector_store = new_vectors
+        else:
+            st.session_state.vector_store.merge_from(new_vectors)
+        
+        st.sidebar.success("Text added successfully!")
+    except Exception as e:
+        st.sidebar.error(f"Error adding text: {e}")
+
+# Main section for querying the chatbot
+st.header("Ask a Question")
+query = st.text_input("Enter your question:")
+
+
+
+if st.button("Get Response"):
+    if st.session_state.vector_store is None:
+        st.error("No data available in vector store. Please add text first.")
+    else:
+        try:
+            retriever = st.session_state.vector_store.as_retriever()
+            retrieval_chain = create_retrieval_chain(retriever, document_chain)
+            
+            start = time.time()
+            response = retrieval_chain.invoke({"input": query})
+            end = time.time()
+            
+            st.success(response['answer'])
+            st.write(f"Response time: {end - start:.2f} seconds")
+        except Exception as e:
+            st.error(f"Error processing request: {e}")
