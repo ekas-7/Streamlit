@@ -32,7 +32,7 @@ st.markdown("""
         --secondary-yellow: #FFC107;
         --hover-yellow: #FFB300;
         --text-dark: #2C3E50;
-        --bg-light: #FFFDF7;
+        --bg-light: #ADFF00;
     }
     
     /* Global styles */
@@ -92,7 +92,7 @@ st.markdown("""
       
         padding: 1.5rem;
         border-radius: 0.5rem;
-        border: 2px solid rgba(255, 225, 0, 1); /* Bright yellow */
+        border: 2px solid #ADFF00;/* Bright yellow */
 
 
         margin-bottom: 1.5rem;
