@@ -5,13 +5,6 @@ import speech_recognition as sr
 import tempfile
 import time
 from gtts import gTTS
-from langchain_community.document_loaders import TextLoader
-from langchain_ollama import OllamaEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.prompts import ChatPromptTemplate
-from langchain.chains import create_retrieval_chain
-from langchain_community.vectorstores import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 
@@ -54,8 +47,6 @@ st.markdown("""
     }
     
     /* Input fields */
-   
-    
     .stTextInput:focus, .stTextArea:focus {
         border-color: var(--primary-yellow);
         box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
@@ -89,12 +80,9 @@ st.markdown("""
     
     /* Cards and containers */
     .content-card {
-      
         padding: 1.5rem;
         border-radius: 0.5rem;
-        border: 2px solid #ADFF00;/* Bright yellow */
-
-
+        border: 2px solid #ADFF00;
         margin-bottom: 1.5rem;
     }
     
@@ -124,15 +112,15 @@ st.markdown("""
 # Suppress deprecated warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="langchain")
 
-# Initialize session state with additional features
-if "vector_store" not in st.session_state:
-    st.session_state.vector_store = None
+# Initialize session state
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "total_questions" not in st.session_state:
     st.session_state.total_questions = 0
 if "successful_responses" not in st.session_state:
     st.session_state.successful_responses = 0
+if "context" not in st.session_state:
+    st.session_state.context = ""
 
 # Load environment variables
 load_dotenv()
@@ -144,9 +132,8 @@ if not gemini_api_key:
     st.info("💡 Tip: Create a .env file in your project root and add: GEMINI_API_KEY=your_key_here")
     st.stop()
 
-# Initialize components with improved error handling
+# Initialize LLM
 try:
-    embeddings = OllamaEmbeddings(model="llama3")
     llm = ChatGoogleGenerativeAI(
         model="gemini-1.5-flash",
         google_api_key=gemini_api_key,
@@ -156,36 +143,24 @@ except Exception as e:
     st.error(f"⚠️ Error initializing AI components: {str(e)}")
     st.stop()
 
-# Enhanced chat prompt template
-prompt = ChatPromptTemplate.from_messages([
-    ("system", """
-    You are Zing Sensei, an enthusiastic and knowledgeable educational AI assistant with expertise in:
-    - Breaking down complex concepts into simple explanations
-    - Providing real-world examples and analogies
-    - Adapting explanations to different learning styles
-    - Encouraging critical thinking and curiosity
-    
-    Context: {context}
-    
-    Remember to:
-    1. Start with a warm greeting
-    2. Provide clear, structured explanations
-    3. Include relevant examples
-    4. End with an encouraging note or follow-up suggestion
-    """),
-    ("user", "{input}")
-])
-
-# Create document chain
-document_chain = create_stuff_documents_chain(llm, prompt)
-
 # Main title with enhanced styling
 st.title("✨ Zing Sensei")
 st.markdown("### Your Personal AI Learning Guide")
 
 # Sidebar with improved organization
 with st.sidebar:
-   
+    # Context input
+    st.markdown("### 📚 Knowledge Base")
+    context_input = st.text_area(
+        "Add Context/Learning Material:",
+        value=st.session_state.context,
+        placeholder="Paste your learning materials, notes, or any educational content here...",
+        height=200
+    )
+    
+    if context_input != st.session_state.context:
+        st.session_state.context = context_input
+        st.success("✨ Context updated successfully!")
     
     # Stats display
     st.markdown("### 📊 Learning Statistics")
@@ -196,44 +171,14 @@ with st.sidebar:
         success_rate = (st.session_state.successful_responses / st.session_state.total_questions * 100) if st.session_state.total_questions > 0 else 0
         st.metric("Success Rate", f"{success_rate:.1f}%")
     
-    st.markdown("### 📚 Knowledge Base")
-    
     with st.expander("ℹ️ Quick Guide", expanded=False):
         st.markdown("""
-        1. 📝 Add your educational content below
+        1. 📝 Add your context in the sidebar
         2. 💭 Ask questions via text or voice
         3. 🎯 Get detailed explanations
         4. 🔊 Listen to audio responses
         5. 📌 Review chat history
         """)
-    
-    text_input = st.text_area(
-        "Educational Content:",
-        placeholder="Paste your learning materials, notes, or any educational content here...",
-        height=200
-    )
-    
-    if st.button("📥 Add to Knowledge Base", use_container_width=True):
-        with st.spinner("Processing your content..."):
-            try:
-                text_splitter = RecursiveCharacterTextSplitter(
-                    chunk_size=1000,
-                    chunk_overlap=100,
-                    separators=["\n\n", "\n", ". ", " ", ""]
-                )
-                final_documents = text_splitter.split_text(text_input)
-                
-                new_vectors = FAISS.from_texts(final_documents, embeddings)
-                
-                if st.session_state.vector_store is None:
-                    st.session_state.vector_store = new_vectors
-                else:
-                    st.session_state.vector_store.merge_from(new_vectors)
-                
-                st.success("✨ Content successfully added to your knowledge base!")
-                st.balloons()
-            except Exception as e:
-                st.error(f"❌ Error processing content: {str(e)}")
 
 # Main content area with improved layout
 col1, col2 = st.columns([2, 1])
@@ -297,22 +242,21 @@ if get_response:
     
     if not query:
         st.error("📝 Please ask a question first!")
-    elif st.session_state.vector_store is None:
-        st.error("📚 The knowledge base is empty. Please add some content!")
     else:
         with st.spinner("🧠 Thinking deeply about your question..."):
             try:
-                retriever = st.session_state.vector_store.as_retriever(
-                    search_type="similarity",
-                    search_kwargs={"k": 3}
-                )
-                retrieval_chain = create_retrieval_chain(retriever, document_chain)
-                
                 start_time = time.time()
-                response = retrieval_chain.invoke({"input": query})
+                
+                # Prepare prompt with context
+                prompt = f"""Context: {st.session_state.context}\n\nQuestion: {query}
+                
+                Please answer the question based on the provided context. If the context doesn't contain relevant information,
+                provide a general response drawing from your knowledge while mentioning that you're not using the specific context."""
+                
+                response = llm.invoke(prompt)
                 end_time = time.time()
                 
-                response_text = response['answer']
+                response_text = response.content
                 
                 # Display response in enhanced container
                 st.markdown("""
