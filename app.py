@@ -64,6 +64,7 @@ st.markdown("""
         transition: all 0.3s ease;
         text-transform: uppercase;
         letter-spacing: 1px;
+        margin-top:1rem;
     }
     
     .stButton>button:hover {
@@ -80,8 +81,10 @@ st.markdown("""
     
     /* Cards and containers */
     .content-card {
-        padding: 1.5rem;
-        border-radius: 0.5rem;
+        padding: 0rem;
+        padding-left:1rem;
+        padding-right:1rem;
+        border-radius: 1rem;
         border: 2px solid #ADFF00;
         margin-bottom: 1.5rem;
     }
@@ -186,7 +189,7 @@ col1, col2 = st.columns([2, 1])
 with col1:
     st.markdown("""
     <div class="content-card">
-        <h3>🤔 Ask Your Question</h3>
+        <h3> Ask Your Question</h3>
     </div>
     """, unsafe_allow_html=True)
     
@@ -198,7 +201,7 @@ with col1:
     
     st.markdown("""
     <div class="content-card">
-        <h3>🎤 Voice Input</h3>
+        <h3> Voice Input</h3>
     </div>
     """, unsafe_allow_html=True)
     
@@ -231,11 +234,11 @@ with col1:
 with col2:
     st.markdown("""
     <div class="content-card">
-        <h3>⚡ Quick Actions</h3>
+        <h3> Quick Actions</h3>
     </div>
     """, unsafe_allow_html=True)
     
-    get_response = st.button("🤖 Get Answer & 🔊 Listen", use_container_width=True)
+    get_response = st.button(" Get Answer &  Listen", use_container_width=True)
 
 if get_response:
     st.session_state.total_questions += 1
