@@ -147,8 +147,8 @@ except Exception as e:
     st.stop()
 
 # Main title with enhanced styling
-st.title("✨ Zing Sensei")
-st.markdown("### Your Personal AI Learning Guide")
+st.title("✨ JiVA AI")
+st.markdown("### Your Personal AI HealthCare Guide")
 
 # Sidebar with improved organization
 with st.sidebar:
